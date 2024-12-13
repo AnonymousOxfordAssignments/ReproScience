@@ -1,0 +1,467 @@
+---
+title: "Reproducible Figures and Science Communication Assignment "
+output:
+  html_document: default
+  pdf_document: default
+date: "2023-10-09"
+---
+
+```{r Loading Packages, echo=FALSE, include=FALSE}
+
+# Here, I load the packages required for this project. Most importantly, palmerpenguins, which contains the 
+# renv ensures that the packages remain up-to-date for anyone trying to reproduce my project in the future, however I had to remove the renv folder when uploading to GitHub as I had to upload manually as my Git app would not be recognised by RStudio 
+library(palmerpenguins)
+library(tidyverse)
+library(ggplot2)
+library(here)
+library(janitor)
+library(patchwork)
+library(ragg)
+library(svglite)
+library(dplyr)
+library(interactions)
+library(renv)
+
+source(here("functions", "cleaning.R"))
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Question 1: Data Visualisation for Science Communication
+
+### 1.1 Provide your figure here:
+
+```{r bad figure code, echo=FALSE, include=FALSE, warning=FALSE, message=FALSE}
+
+# Data Prep - mostly for Q2 onwards, repeated there again as part of the data pipeline, but I have included some here for use in my poor graph
+write.csv(penguins_raw,here("dataset","penguins_raw.csv"))
+
+data_raw <- read.csv(here("dataset","penguins_raw.csv"))
+
+head(data_raw)
+colnames(data_raw)
+
+cleaned_data <- clean_column_names(data_raw)
+
+write.csv(cleaned_data,here("dataset","data_clean.csv"))
+
+data_clean <- read.csv(here("dataset","data_clean.csv"))
+
+head(data_clean)
+colnames(data_clean)
+
+
+# Bad Figure 
+# Create the ggplot object
+poor_graph_png <- ggplot(data_clean) +
+  geom_col(aes(x = flipper_length_mm,
+               y = body_mass_g, fill=island)) +
+  scale_fill_manual(values = c("lightgreen", "green", "red"))
+
+# Save the plot using ragg::agg_png
+agg_png("figures/poor_graph.png",
+        width = 3000,
+        height = 3000,
+        units = "px",
+        res = 1000,
+        scaling = 0.5)
+
+
+print(poor_graph_png)
+
+dev.off()
+
+print(poor_graph_png)
+
+```
+
+```{r Providing bad graph, echo=FALSE,warning=FALSE, message=FALSE}
+print(poor_graph_png)
+```
+
+### 1.2 Write about how your design choices mislead the reader about the underlying data (200-300 words):
+
+Science communication and data visualisation has certain requirements (Whitlock and Schluter, 2020) to be considered effective. These are listed below. While my graph’s data is correct, the design choices mean that the graph violates all these categories:
+
+a)      Showing the data
+
+The flipper lengths from all the islands have been stacked on top of each other, obscuring the relative contributions of each island. For example, this is misleading as “Biscoe” values visually overshadow smaller distributions of “Dream” and “Torgersen” as the design choice has made it very challenging for any reader to compare relative proportions.
+
+b)     Highlighting patterns easily
+
+The use of similar shades of green are visually confusing and mask any discernible patterns. Furthermore, the bin widths are overly narrow which over-emphasises noisy data and makes meaningful trends hard to make out.
+
+c)      Showing scales/magnitudes honestly and clearly
+
+While the scales are honest, they are not very useful to any reader. For example, the y-axis measures weight but does this in grams, thus values are in the thousands, which makes it hard for readers to pick out any specific certain values.
+
+d)     Drawing graphical elements clearly
+
+Alongside overlapping bars and similarity of colours, there is another issue with the visuals. They are not colour-blind friendly, and in-fact employ colours which are most commonly similar for colour-blind people (Gordon, N., 1998), making the graphical elements inaccessible and unclear for many people. Further to this, axis labels are unclear as they are not formatted, and there is no title so readers cannot quickly determine what the graph shows.
+
+------------------------------------------------------------------------
+
+## Question 2: Data Pipeline
+
+### [2.1 Introduction]{.underline}
+
+The PalmerPenguins dataset consists data for many attributes of three penguin species which inhabit three islands on the Palmer Archipelago in Antarctica. Variables include an array of morphological and phenotypic characteristics including body measurements.
+
+The penguin species include Adelie, Chinstrap and Gentoo. The islands are Biscoe, Dream and Torgersen.
+
+In my project, my aim is to analyse the relationship that exists between body mass (grams) and flipper length (millimetres) across these penguin species, before looking into whether species plays a role in this interaction.
+
+Here, I present a complete data pipeline for this project and analysis, including labelled code. The pipeline consists of:
+
+1.  **Introduction (here)**
+2.  **Cleaning and Preparing the Data**
+3.  **Exploratory Figure**
+    1.  **Hypotheses**
+4.  **Statistical Methods**
+    1.  **Diagnostic Plots**
+    2.  **Normality Tests**
+5.  **Results and Discussion**
+6.  **Conclusion**
+
+### [2.2 Cleaning and Preparing the Data]{.underline}
+
+Initiating the pipeline, I must first clean and prepare my raw data to make it easier to use. In this example, the column names in the raw PalmerPenguins dataset is convoluted and hard to use, for example with no clear capitalisation pattern, switching between using underscores and periods for spaces in column names, etc.
+
+```{r Load and Write the Data, warning=FALSE, message=FALSE}
+# First priority would be to download and load the packages, but I omit that here as this is already listed in the first code chunk of this document.
+
+# I ensure that the initial data I receive from the Palmer Penguins dataset is preserved before any cleaning, manipulation or analysis in case I need to call the original data back in the future, e.g. for analysis of raw data
+
+# Here, I am writing the raw data into it's own .csv file
+write.csv(penguins_raw,here("dataset","penguins_raw.csv"))
+# Labelling it with a simple to understand name 
+data_raw <- read.csv(here("dataset","penguins_raw.csv"))
+
+# This raw data can be investigated on a basic level before any data manipulation or analysis 
+head(data_raw)
+
+# More importantly, I can investigate the formatting of variable names to decide whether or not these need changing for ease of use/quality of life later on
+colnames(data_raw)
+
+```
+
+```{r Appropriately Clean the Data, warning=FALSE, message=FALSE}
+# As the column names are convoluted, I should clean the data to make it easier to work with. Here I am using a function included in this project in the "functions" folder, provided by Lydia France of the University of Oxford. I label this new data with the easy name "cleaned_data"
+cleaned_data <- clean_column_names(data_raw)
+
+# As with the raw data, I can save this into its own .csv file and label it with an easy-to-use name
+write.csv(cleaned_data,here("dataset","data_clean.csv"))
+data_clean <- read.csv(here("dataset","data_clean.csv"))
+
+# This can also be investigated on a basic scale in terms of formatting
+head(data_clean)
+colnames(data_clean)
+```
+
+### [2.3 Exploratory Figure and Hypotheses]{.underline}
+
+Prior to constructing hypotheses, it is useful to analyse any general trends and patterns in the raw data, linking this to my general question of comparing body mass and flipper lengths for the three species.
+
+```{r Figure 1: Exploratory Figure, warning=FALSE, message=FALSE}
+
+# A scatter plot can show us how flipper length varies with body mass across the three species in the dataset - for this, I use the ggplot 2 function. I have also created a custom colour palette to ensure my graph is colour-blind friendly to increase accessibility 
+
+
+length_mass_plot <- ggplot(data_clean,aes(x=body_mass_g, 
+                                          y=flipper_length_mm, colour=species))+
+  geom_point()+
+  labs(title=" Figure 1: How does body mass differ with flipper length for three penguin species?",
+       x="Body Mass (g)",
+       y="Flipper Length (mm)",
+       legend="Species")+
+  theme(plot.title=element_text(size=5))+ # text sizing 
+  scale_color_manual(values=c("#D81B60", "#1E88E5", "#FFC107"))+ 
+  theme_minimal()
+
+# I can now print my plot which I have saved with an easy to use name
+print(length_mass_plot)
+```
+
+It is very useful to save this figure so we can easily find it again later without risking breaking the code by running it again in a different order. Also, saving all of our plots as .pngs helps us to scale them when using them later, for example if we want to include them in any scientific reports.
+
+```{r Saving the Exploratory Figure, warning=FALSE, message=FALSE}
+
+#Saving the figure to the "figures" subfolder in my project
+agg_png("figures/length_mass_plot.png",
+        width=5000,
+        height=3000,
+        units="px",
+        res=500)
+print(length_mass_plot)
+dev.off()
+
+```
+
+### [2.3.1 Hypotheses]{.underline}
+
+Based on the exploratory *Figure 1* of flipper length against body mass, it looks like there seems to be somewhat of a positive correlation between the two variables. This is very interesting from a biological perspective, so we can construct hypotheses based off this.
+
+**Null Hypotheses:**
+
+-   We do not expect random biological attributes to be correlated under a null hypothesis, thus there should be no statistically significant correlation between body mass and flipper length
+
+-   If there is no link, then we expect that species does not play any interactive role
+
+**Alternative Hypotheses:**
+
+-   As my exploratory figure seems to represent some link between body mass and flipper length, the alternative hypothesis is that this link is statistically significant
+
+-   If there is a correlation between the two attributes, then we expect that species may play an interactive role in this
+
+### 2.4 Statistical Methods
+
+To test this statistically, I perform a set of linear regressions. This is justified by the need to assess the individual and combined effects of body mass and species on flipper length. This model aligns with the study's aims of quantifying the relationship between these variables and evaluating species-specific variations. Linear regression is appropriate for this dataset due to its continuous numeric variables and the clear hypothesis of linear relationships.
+
+Here, I create two models: one not controlling for species for species effect (model A), and one controlling for it (model B, using the Adelie species as the reference).
+
+```{r Running a Statistical Test, warning=FALSE, message=FALSE}
+
+# Model A - Testing for relationship between flipper length and body mass, not controlling for species
+model_a <- lm(flipper_length_mm ~ body_mass_g, data = cleaned_data)
+
+# Model B - Testing for relationship between body mass and flipper length, with interaction of species
+model_b <- lm(flipper_length_mm ~ body_mass_g * species, data = cleaned_data)
+
+# Model summaries
+summary(model_a)
+summary(model_b)
+
+# Checking assumptions for both models
+
+# Extract residuals
+residuals_a <- residuals(model_a)
+residuals_b <- residuals(model_b)
+
+```
+
+### [2.4.1 Diagnostic Plots]{.underline}
+
+Before discussing any results of this model, it is useful to understand how powerful it is, and the degree to which it fits our data given the assumptions of a linear model. Here is a list of the assumptions and what we expect to find in suitable data for plots of each assumption:
+
+-   [**Homoscedasticity - the individual data points are equally varied.**]{.underline}
+
+    -   **Residual vs Fitted plot:** we expect to see a random scatter with no clear pattern to show equal variance.
+
+-   [**Normality of Residuals**]{.underline}
+
+    -   **Histogram of Residuals:** we expect to see a normal distribution
+
+    -   **Q-Q Plot:** we expect each data point to lie closely to a central 45-degree reference line
+
+Below is the code for creating these plots for each model.
+
+```{r Creating Diagnostic Plots to Verify Model Fit, warning=FALSE, message=FALSE}
+
+# Function to create diagnostic plots for a model
+diagnostic_plots <- function(residuals, model_name) {
+  # Residual vs Fitted plot
+  p1 <- ggplot(data = data.frame(residuals, fitted = fitted.values(model_a)), aes(x = fitted, y = residuals)) +
+    geom_point(alpha = 0.7) +
+    geom_hline(yintercept = 0, color = "red", linetype = "dashed") +
+    labs(title = paste("Residuals vs Fitted:", model_name), x = "Fitted Values", y = "Residuals") +
+    theme_minimal()
+  
+  # QQ Plot
+  p2 <- ggplot(data = data.frame(sample = residuals), aes(sample = residuals)) +
+    stat_qq() +
+    stat_qq_line(color = "red") +
+    labs(title = paste("QQ Plot:", model_name)) +
+    theme_minimal()
+  
+  # Histogram of Residuals
+  p3 <- ggplot(data = data.frame(residuals), aes(x = residuals)) +
+    geom_histogram(binwidth = 1, fill = "blue", color = "black", alpha = 0.7) +
+    labs(title = paste("Histogram of Residuals:", model_name), x = "Residuals", y = "Frequency") +
+    theme_minimal()
+  
+  # Combine plots
+  p1 + p2 + p3 + plot_layout(ncol = 1)
+}
+
+# Generate diagnostic plots for model_a
+diag_plots_a <- diagnostic_plots(residuals_a, "Model A")
+
+# Generate diagnostic plots for model_b
+diag_plots_b <- diagnostic_plots(residuals_b, "Model B")
+
+# Display diagnostic plots
+diag_plots_a
+diag_plots_b
+```
+
+Our diagnostic plots seem to show that our data visually fits better with Model B, where species interactions are accounted for, than in Model A. These results are shown in *Table 1*.
+
+| Diagnostic Plot | Model A | Model B |
+|------------------------|------------------------|------------------------|
+| Residual v Fitted | Concentrated and clustered on left, also around x-axis | Equal and varied range |
+| Q-Q Plot | Points very close to 45-degree reference line, some points straying (top right) | Points are closer to 45-degree reference line than Model A |
+| Histogram of Residuals | Right-skew normal distribution | Normal distribution |
+
+Again, it is useful to save these plots for future use, for the reasons described above.
+
+```{r Saving Diagnostic Plots A, warning=FALSE, message=FALSE}
+
+# Diagnostic plots A
+agg_png("figures/diag_plots_a.png",
+        width=5000,
+        height=3000,
+        units="px",
+        res=500)
+print(diag_plots_a)
+dev.off()
+```
+
+```{r Saving Diagnostic Plots B, warning=FALSE, message=FALSE}
+
+# Diagnostic plots B
+agg_png("figures/diag_plots_b.png",
+        width=5000,
+        height=3000,
+        units="px",
+        res=500)
+print(diag_plots_b)
+dev.off()
+
+```
+
+### [2.4.2 Normality Tests]{.underline}
+
+Our visual diagnostics are not quantitatively conclusive, and provide a more visual first-glance at our model fit. I now perform a Shapiro-Wilkes test to quantify the model fit for both A and B.
+
+```{r Further testing normality of residuals to assess fit of both models, warning=FALSE, message=FALSE}
+shapiro_a <- shapiro.test(residuals_a)
+shapiro_b <- shapiro.test(residuals_b)
+```
+
+**Shapiro-Wilkes Test for Normality**
+
+The Shapiro test determines whether a set of data - here our residuals - follows a normal distribution to ensure the assumptions of a linear model are met. Here are the results for both Model A and Model B:
+
+Shapiro-Wilkes Test for Model A:
+
+```{r Printing Shapiro-Wilkes for model A, warning=FALSE, message=FALSE}
+shapiro_a
+```
+
+The p-value for Model A, without species interaction, is much smaller than p\<0.05, with a value of around 0.0004. Thus we **reject the null hypothesis of normality for model A.** In other words, this reduces the power of Model A because the residuals are not normally distributed meaning the data may not fully meet the assumptions of a linear regression, which could impact reliability of our hypothesis testing.
+
+Shapiro-Wilkes Test for Model B:
+
+```{r Printing Shapiro-Wilkes for model B, warning=FALSE, message=FALSE}
+shapiro_b
+```
+
+However, when we perform a Shapiro-Wilkes for Model B, we get a much greater p-value, higher than the threshold 0.05 value, at 0.09. This means **we fail to reject the null hypothesis of normality in Model B**. In other words, Model B is more powerful and a better fit than Model A, both through visualising diagnostic plots, as well as when performing statistical tests such as Shapiro-Wilkes.
+
+### 2.5 Results & Discussion
+
+*Table 2* shows the combined results of the linear regression model, as well as the Shapiro-Wilkes test. Model B is depicted in terms of Chinstrap and Gentoo species both being compared to the reference Adelie species.
+
+| Model | Beta: (impact on flipper length by body mass) | p-value | R^2^ | Shapiro-Wilkes p-value significant at p\<0.05?\* |
+|---------------|---------------|---------------|---------------|---------------|
+| Model A | 0.0153 | \~2x10^-6^ | 0.759 | Yes |
+| Model B: Chinstrap | 0.0052 | 0.0077 | 0.857 | No |
+| Model B: Gentoo | 0.0021 | 0.0816 | 0.857 | No |
+
+\*note: the model is powerful if the Shapiro p-value is **not** significant
+
+To visualise the results of the analysis, I plot the relationship between body mass and flipper length for each species, with regression lines and confidence intervals in *Figure 2*.
+
+```{r Creating a Results Figure, warning=FALSE,message=FALSE}
+
+# Scatter plot with regression lines, faceted by species, and custom colors
+final_plot <- ggplot(cleaned_data, aes(x = body_mass_g, y = flipper_length_mm, color = species)) +
+  geom_point(alpha = 0.7) +                          # Scatter points
+  geom_smooth(method = "lm", se = TRUE) +           # Regression lines with confidence intervals
+  facet_wrap(~ species, strip.position = "top") +   # Facet by species
+  scale_color_manual(values=c("#D81B60", "#1E88E5", "#FFC107"))+
+  labs(
+    title = "Figure 2: Relationship Between Body Mass and Flipper Length by Species",
+    subtitle = "Regression lines for each species show interaction effects",
+    x = "Body Mass (g)",
+    y = "Flipper Length (mm)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",                       # Remove legend (redundant with facets)
+    panel.spacing = unit(2, "lines"),               # Add space between panels
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5), # Border around panels
+    strip.background = element_blank(),            # Clean facet labels
+    strip.text = element_text(size =6.5, face = "bold"), # Style facet labels
+    plot.title = element_text(size = 12, face = "bold"),
+    plot.subtitle = element_text(size = 10)
+  )
+
+print(final_plot)
+
+```
+
+```{r Saving the Final Figure, warning=FALSE, message=FALSE}
+
+agg_png("figures/final_plot.png",
+        width=5000,
+        height=3000,
+        units="px",
+        res=500)
+print(final_plot)
+dev.off()
+```
+
+The plots illustrate positive interaction effects between body mass and flipper length for each of the three species. The species-specific regression lines also show varying slopes, suggesting this relationship differs across species. This aligns with Model B, where species-effects were included, being more powerful.
+
+Discussing the results of Model B, which was the only model where the data met the assumptions of the model, we find an insight into species effects. The model reveals that the slope for Chinstrap penguins differs significantly from the reference Adelie slope, with an estimated difference of 0.0052 (beta-value, see *Table 2*), and a p-value of 0.00766 (also in *Table 2*). In contrast, the interaction term for Gentoo penguins is not statistically significant (beta = 0.0021, p-value=0.082, see *Table 2*), suggesting no meaningful difference in the slope between Gentoo and Adelie penguins.
+
+Including the species interaction resulted in a substantial improvement in model fit, with the R^2^ value increasing substantially in Model B. Again, this is cemented by the Shapiro-Wilkes test showing no evidence of departure from normality, suggesting Model B better satisfies the assumptions of a linear regression, and is thus more powerful.
+
+*Figure 2* supports the statistical findings by visually highlighting the differences in relationships between body mass and flipper length across species with colour-blind friendly palettes. Gentoo and Adelie penguins exhibit similar slopes clustered around the same morphospace whereas Chinstrap penguins are distinct, visually corroborating the statistical analysis. These findings pinpoint the importance of accounting for species-specific interaction effects.
+
+### 2.6 Conclusion
+
+My analysis demonstrates a clear positive relationship between body mass and flipper length in these three penguin species, with species-specific differences playing a role. Chinstrap penguins exhibit a steeper relationship between these two attributes compared to Adelie and Gentoo penguins which are not statistically separate in their relationships of body mass and flipper length.
+
+Future studies could investigate whether environmental or behavioural factors also play a role in influencing this relationship across species. Broadly, my project emphasises the need to integrate species-specific data into ecological frameworks to improve biodiversity preservation strategies.
+
+------------------------------------------------------------------------
+
+## Question 3: Open Science
+
+### 3.1 GitHub
+
+*GitHub link:*
+
+*You will be marked on your repo organisation and readability.*
+
+### 3.2 Share your repo with a partner, download, and try to run their data pipeline.
+
+*Partner's GitHub link:*
+
+*You **must** provide this so I can verify there is no plagiarism between you and your partner.*
+
+### 3.3 Reflect on your experience running their code. (300-500 words)
+
+My partner had a very clear outline and workflow from the start. They very clearly explained in the introduction how the dataset was arranged as well as their aim for the study. In their hypotheses section, they explained the necessity of including an exploratory figure before going on to using this to form their hypotheses. Furthermore, their utilisation of both explanatory information outside of the chunks, as well as commenting using hashtags next to the code itself, was very useful to follow their scientific method and chain of logic.
+
+This was especially useful when they were doing their normality tests as they had very clear reasoning for each test, and how it followed on from the one before. It was great they included tests for normality such as the Shapiro-Wilkes test to quantify model fit instead of just relying on visual diagnostic plots. More specifically on their code, their use of piping ensured that codes within the same chunk were kept visually separate, and due to their excellent syntax and conciseness in coding, everything ran smoothly on my laptop. Their data visualisation was particularly strong with appropriate axis labels and formatting – they met the four fundamentals of data visualisation I mentioned earlier. This is the largest asset to their code as it proves its reproducibility – I was able to replicate their results completely.
+
+Moreover, if I wished to work further on my partners code and alter it for future study, I would feel extremely comfortable doing due to its clarity, simplicity and helpful explanation outside of code chunks guiding me through it. Again, this is a great asset to the project as it allows this work to be built upon – something which is crucial for data science research.
+
+For future suggestions, I would recommend to my partner to add more comments within the code chunks themselves to further elaborate on what each element of the code is doing. While a comment on every line of code isn’t necessary, there were times where a whole part of code would not be commented on inside the chunk which required me to guess and estimate why it had been included and what was trying to be proven. As I have experience working with PalmerPenguins, I believe I was able to fully understand the code, however if another scientist who was new to this was wanting to develop the code further, they may have struggled.
+
+### 3.4 Reflect on your own code based on your experience with your partner's code and their review of yours. (300-500 words)
+
+-   *What improvements did they suggest, and do you agree?*
+
+-   *What did you learn about writing code for other people?*
+
+## Bibliography
+
+Whitlock, M., & Schluter, D. (2009). The analysis of biological data. Roberts and Co. Publishers.
+
+Gordon, N.,. Colour blindness, Public Health, Volume 112, Issue 2, 1998, Pages 81-84, ISSN 0033-3506,
